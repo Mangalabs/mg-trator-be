@@ -2,16 +2,12 @@ const { initializeApp, cert } = require('firebase-admin/app')
 const path = require('path')
 const fs = require('fs')
 
-// Método 1: Usar arquivo JSON (desenvolvimento local)
-// Método 2: Usar variáveis de ambiente (produção/Docker)
 let serviceAccount
 
 if (process.env.FIREBASE_CREDENTIALS_PATH) {
-  // Carregar de arquivo especificado por ENV
   const credentialsPath = path.resolve(process.env.FIREBASE_CREDENTIALS_PATH)
   serviceAccount = require(credentialsPath)
 } else if (process.env.FIREBASE_PRIVATE_KEY) {
-  // Carregar de variáveis de ambiente individuais
   serviceAccount = {
     type: 'service_account',
     project_id: process.env.FIREBASE_PROJECT_ID,
@@ -25,7 +21,6 @@ if (process.env.FIREBASE_CREDENTIALS_PATH) {
     client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
   }
 } else {
-  // Fallback: tentar carregar arquivo padrão (desenvolvimento)
   const defaultPath = path.resolve(
     __dirname,
     '../../mg-estoque-app-firebase-adminsdk-fbsvc-a7d1ee22d5.json'

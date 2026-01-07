@@ -9,7 +9,6 @@ const isDevelopment = NODE_ENV !== 'production'
 
 const app = express()
 
-// CORS configurável por ambiente
 const corsOrigins = ALLOWED_ORIGINS
   ? ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
   : isDevelopment

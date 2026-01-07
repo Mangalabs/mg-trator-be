@@ -1,9 +1,7 @@
 const cron = require('node-cron')
 const axios = require('axios')
 
-// Produção: Executa a cada 15 minutos
 const CRON_SCHEDULE = '*/15 * * * *'
-// Produção: Cooldown de 24 horas
 const NOTIFICATION_COOLDOWN_HOURS = 24
 const CLICK_API_URL = process.env.CLICK_API_URL || 'https://api.exemplo.com'
 const CLICK_API_ACCESS_TOKEN = process.env.CLICK_API_ACCESS_TOKEN
