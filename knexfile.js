@@ -1,4 +1,4 @@
-// Update with your config settings.
+require('dotenv').config()
 
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
@@ -7,7 +7,7 @@ module.exports = {
   development: {
     client: 'sqlite3',
     connection: {
-      filename: './dev.sqlite3',
+      filename: process.env.DB_FILE || './dev.sqlite3',
     },
     useNullAsDefault: true,
     migrations: {
@@ -20,29 +20,40 @@ module.exports = {
 
   staging: {
     client: 'postgresql',
-    connection: {
-      database: 'my_db',
-      user: 'username',
-      password: 'password',
+    connection: process.env.DATABASE_URL || {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'mg_trator_staging',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
     },
     pool: {
-      min: 2,
-      max: 10,
+      min: parseInt(process.env.DB_POOL_MIN) || 2,
+      max: parseInt(process.env.DB_POOL_MAX) || 10,
+    },
+    migrations: {
+      directory: './src/database/migrations',
+      tableName: 'knex_migrations',
     },
   },
 
   production: {
     client: 'postgresql',
-    connection: {
-      database: 'my_db',
-      user: 'username',
-      password: 'password',
+    connection: process.env.DATABASE_URL || {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      ssl:
+        process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     },
     pool: {
-      min: 2,
-      max: 10,
+      min: parseInt(process.env.DB_POOL_MIN) || 2,
+      max: parseInt(process.env.DB_POOL_MAX) || 10,
     },
     migrations: {
+      directory: './src/database/migrations',
       tableName: 'knex_migrations',
     },
   },

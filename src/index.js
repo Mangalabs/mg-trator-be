@@ -3,15 +3,25 @@ const dotenv = require('dotenv')
 const cors = require('cors')
 
 dotenv.config()
-const { PORT } = process.env
+
+const { PORT, NODE_ENV, ALLOWED_ORIGINS } = process.env
+const isDevelopment = NODE_ENV !== 'production'
 
 const app = express()
 
+// CORS configurável por ambiente
+const corsOrigins = ALLOWED_ORIGINS
+  ? ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+  : isDevelopment
+  ? '*'
+  : 'http://localhost:8081'
+
 app.use(
   cors({
-    origin: '*',
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 )
 app.use(express.json())
@@ -42,6 +52,13 @@ app.use('/messaging', messagingRouter.getRoutes())
 
 require('./cron/notificationCron')(productModel, firebaseMessaging)
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`)
+const port = PORT || 3000
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`)
+  console.log(`Environment: ${NODE_ENV || 'development'}`)
+  console.log(
+    `CORS origins: ${
+      Array.isArray(corsOrigins) ? corsOrigins.join(', ') : corsOrigins
+    }`
+  )
 })
