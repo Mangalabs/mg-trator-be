@@ -1,37 +1,82 @@
-const { getMessaging } = require("firebase-admin/messaging");
+const { getMessaging } = require('firebase-admin/messaging')
 
 class FirebaseMessaging {
   constructor() {
-    this.messaging = getMessaging();
+    this.messaging = getMessaging()
   }
 
   async subscribeToTopic(fcmToken, topics) {
-    const subscriptions = [];
+    const subscriptions = []
     for (const topic of topics) {
-      subscriptions.push(this.messaging.subscribeToTopic(fcmToken, topic));
+      subscriptions.push(this.messaging.subscribeToTopic(fcmToken, topic))
     }
 
-    await Promise.all(subscriptions);
+    await Promise.all(subscriptions)
   }
 
-  async sendNotification(title, body) {
+  async unsubscribeFromTopic(fcmToken, topic) {
+    await this.messaging.unsubscribeFromTopic(fcmToken, topic)
+  }
+
+  async sendNotification(title, body, topic = 'stock') {
     const message = {
       notification: {
         title: title,
         body: body,
       },
-      data: {},
-      topic: "stock",
-    };
-    this.messaging
-      .send(message)
-      .then((response) => {
-        console.log("Mensagem enviada com sucesso:", response);
-      })
-      .catch((error) => {
-        console.error("Erro ao enviar mensagem:", error);
-      });
+      data: {
+        timestamp: Date.now().toString(),
+        type: 'stock_alert',
+      },
+      topic: topic,
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'stock_alerts',
+          priority: 'high',
+          sound: 'default',
+        },
+      },
+    }
+
+    try {
+      const response = await this.messaging.send(message)
+      return response
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async sendNotificationToToken(title, body, token) {
+    const message = {
+      notification: {
+        title: title,
+        body: body,
+      },
+      data: {
+        timestamp: Date.now().toString(),
+        type: 'stock_alert',
+      },
+      token: token,
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'stock_alerts',
+          priority: 'high',
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
+      },
+    }
+
+    try {
+      const response = await this.messaging.send(message)
+      return response
+    } catch (error) {
+      throw error
+    }
   }
 }
 
-module.exports = FirebaseMessaging;
+module.exports = FirebaseMessaging

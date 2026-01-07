@@ -1,19 +1,27 @@
-const express = require("express");
+const express = require('express')
 
 class MessagingRouter {
   constructor(messagingController) {
-    this.messaging = express.Router();
+    this.messaging = express.Router()
 
-    this.messagingController = messagingController;
+    this.messagingController = messagingController
 
-    this.messaging.get("/subscribe", (request, response) => {
-      this.messagingController.getAll(request, response);
-    });
+    this.messaging.post('/subscribe', (request, response) => {
+      this.messagingController.subscribeToTopics(request, response)
+    })
+
+    this.messaging.post('/test', (request, response) => {
+      this.messagingController.sendTestNotification(request, response)
+    })
+
+    this.messaging.post('/test-token', (request, response) => {
+      this.messagingController.sendTestToToken(request, response)
+    })
   }
 
   getRoutes() {
-    return this.messaging;
+    return this.messaging
   }
 }
 
-module.exports = MessagingRouter;
+module.exports = MessagingRouter
