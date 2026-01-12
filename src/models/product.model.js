@@ -48,6 +48,14 @@ class ProductModel {
       .andWhereRaw('CAST(min AS INTEGER) > 0')
   }
 
+  async getProductsWithNotificationsEnabled() {
+    return await this.connection('product')
+      .select('*')
+      .where('notifications_enabled', true)
+      .whereNotNull('min')
+      .andWhereRaw('CAST(min AS INTEGER) > 0')
+  }
+
   async updateLastNotification(productId) {
     return await this.connection('product').where('id', productId).update({
       last_notification_at: this.connection.fn.now(),

@@ -37,6 +37,9 @@ const {
 const { ProductRouter, MessagingRouter } = require('./routes/index')
 
 const FirebaseMessaging = require('./firebase/messaging')
+const StockMonitorService = require('./services/stock-monitor.service')
+const StockMonitorController = require('./controllers/stock-monitor.controller')
+const StockMonitorRouter = require('./routes/stock-monitor.routes')
 
 const productModel = new ProductModel(connection)
 const productController = new ProductController(productModel)
@@ -46,10 +49,19 @@ const firebaseMessaging = new FirebaseMessaging()
 const messagingController = new MessagingController(firebaseMessaging)
 const messagingRouter = new MessagingRouter(messagingController)
 
+const stockMonitorService = new StockMonitorService(
+  productModel,
+  firebaseMessaging
+)
+const stockMonitorController = new StockMonitorController(stockMonitorService)
+const stockMonitorRouter = new StockMonitorRouter(stockMonitorController)
+
 app.use('/product', productRouter.getRoutes())
 app.use('/messaging', messagingRouter.getRoutes())
+app.use('/stock-monitor', stockMonitorRouter.getRouter())
 
-require('./cron/notificationCron')(productModel, firebaseMessaging)
+// Iniciar cron de verificação automática de estoque
+require('./cron/notificationCron')(stockMonitorService)
 
 const port = PORT || 3000
 app.listen(port, () => {
