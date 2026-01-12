@@ -145,8 +145,7 @@ class ProductController {
                 name: product.name || clickProduct.nome,
                 currentStock: parseInt(clickProduct.estoque, 10) || 0,
                 lastNotification: product.last_notification_at,
-                notifications_enabled:
-                  product.notifications_enabled === 1 ? true : false,
+                notifications_enabled: Boolean(product.notifications_enabled),
               }
             }
 
@@ -158,8 +157,7 @@ class ProductController {
               name: product.name || `Produto ${product.barcode}`,
               currentStock: 0,
               lastNotification: product.last_notification_at,
-              notifications_enabled:
-                product.notifications_enabled === 1 ? true : false,
+              notifications_enabled: Boolean(product.notifications_enabled),
             }
           } catch (error) {
             return {
@@ -170,8 +168,7 @@ class ProductController {
               name: product.name || `Produto ${product.barcode}`,
               currentStock: 0,
               lastNotification: product.last_notification_at,
-              notifications_enabled:
-                product.notifications_enabled === 1 ? true : false,
+              notifications_enabled: Boolean(product.notifications_enabled),
             }
           }
         })
