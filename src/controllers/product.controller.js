@@ -234,16 +234,24 @@ class ProductController {
               clickResponse.data?.data &&
               clickResponse.data.data.length > 0
             ) {
-              const clickProduct = clickResponse.data.data[0]
+              let clickProduct
+
+              if (product.click_id) {
+                clickProduct = clickResponse.data.data.find(
+                  (p) => p.id.toString() === product.click_id.toString()
+                )
+              }
+
+              if (!clickProduct) {
+                clickProduct = clickResponse.data.data[0]
+              }
+
               const currentStock = parseInt(clickProduct.estoque, 10) || 0
               const minStock = parseInt(product.min, 10) || 0
 
-              // Verificar se é crítico (30% ou menos do mínimo)
               if (currentStock <= minStock * 0.3) {
                 criticalStockCount++
-              }
-              // Verificar se é baixo (80% ou menos do mínimo)
-              else if (currentStock <= minStock * 0.8) {
+              } else if (currentStock <= minStock * 0.8) {
                 lowStockCount++
               }
             }
@@ -309,7 +317,6 @@ class ProductController {
         })
       }
 
-      // Buscar produtos locais para pegar min, notifications_enabled
       const localProducts = await this.productModel.getAll()
       const localProductsMap = new Map()
       localProducts.forEach((p) => {
