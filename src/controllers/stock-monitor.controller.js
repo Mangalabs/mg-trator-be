@@ -35,20 +35,17 @@ class StockMonitorController {
 
       const topic = `product_${productId}`
 
-      await firebaseMessaging.sendToTopic(topic, {
-        notification: {
-          title: '🧪 Teste de Notificação',
-          body: 'Esta é uma notificação de teste do sistema MGTrator',
-        },
-        data: {
-          type: 'test',
-          productId: productId.toString(),
-        },
-      })
+      // Usando o método correto do Firebase Messaging
+      const result = await firebaseMessaging.sendNotification(
+        '🧪 Teste de Notificação',
+        'Esta é uma notificação de teste do sistema MGTrator',
+        topic
+      )
 
       return response.status(200).json({
         message: 'Notificação de teste enviada com sucesso',
         topic,
+        result,
       })
     } catch (error) {
       return response.status(500).json({
