@@ -207,20 +207,8 @@ class StockMonitorService {
     const topic = `product_${product.id}`
 
     try {
-      await this.firebaseMessaging.sendToTopic(topic, {
-        notification: {
-          title,
-          body,
-        },
-        data: {
-          type: 'low_stock',
-          productId: product.id.toString(),
-          barcode: product.barcode,
-          currentStock: currentStock.toString(),
-          minStock: minStock.toString(),
-          level,
-        },
-      })
+      // Usando o método correto da classe FirebaseMessaging
+      await this.firebaseMessaging.sendNotification(title, body, topic)
 
       console.log(`✅ Notificação enviada para tópico: ${topic}`)
     } catch (error) {
