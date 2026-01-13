@@ -8,6 +8,10 @@ class StockMonitorRouter {
     this.router.post('/check', (request, response) => {
       this.stockMonitorController.checkStock(request, response)
     })
+
+    this.router.post('/test-notification', (request, response) => {
+      this.stockMonitorController.testNotification(request, response)
+    })
   }
 
   getRouter() {

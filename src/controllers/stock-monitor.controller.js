@@ -18,6 +18,45 @@ class StockMonitorController {
       })
     }
   }
+
+  async testNotification(request, response) {
+    try {
+      const { productId } = request.body
+
+      if (!productId) {
+        return response.status(400).json({
+          error: 'productId é obrigatório',
+        })
+      }
+
+      // Buscar produto
+      const FirebaseMessaging = require('../firebase/messaging')
+      const firebaseMessaging = new FirebaseMessaging()
+
+      const topic = `product_${productId}`
+
+      await firebaseMessaging.sendToTopic(topic, {
+        notification: {
+          title: '🧪 Teste de Notificação',
+          body: 'Esta é uma notificação de teste do sistema MGTrator',
+        },
+        data: {
+          type: 'test',
+          productId: productId.toString(),
+        },
+      })
+
+      return response.status(200).json({
+        message: 'Notificação de teste enviada com sucesso',
+        topic,
+      })
+    } catch (error) {
+      return response.status(500).json({
+        error: 'Erro ao enviar notificação de teste',
+        message: error.message,
+      })
+    }
+  }
 }
 
 module.exports = StockMonitorController
