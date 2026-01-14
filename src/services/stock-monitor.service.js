@@ -9,6 +9,23 @@ class StockMonitorService {
   async checkAllProducts() {
     console.log('🔍 Iniciando verificação de estoque...')
 
+    // Verificar se está em horário comercial
+    if (!this.isBusinessHours()) {
+      console.log(
+        '⏰ Fora do horário comercial (Segunda-Sexta, 8h-18h). Verificação ignorada.'
+      )
+      return {
+        success: true,
+        results: {
+          checked: 0,
+          notifications_sent: 0,
+          errors: 0,
+          skipped: 0,
+        },
+        message: 'Fora do horário comercial',
+      }
+    }
+
     const CLICK_API_URL = process.env.CLICK_API_URL
     const CLICK_API_ACCESS_TOKEN = process.env.CLICK_API_ACCESS_TOKEN
     const CLICK_API_SECRET_TOKEN = process.env.CLICK_API_PRIVATE_TOKEN
@@ -43,7 +60,7 @@ class StockMonitorService {
 
           if (notificationsToday >= 2) {
             console.log(
-              `⏭️  Produto ${product.barcode} já foi notificado 2x hoje, pulando...`
+              `⏭️  Produto ${product.barcode} já foi notificado ${notificationsToday}x hoje, pulando...`
             )
             results.skipped++
             continue
@@ -149,7 +166,7 @@ class StockMonitorService {
   async getNotificationsCountToday(productId) {
     const connection = this.productModel.connection
 
-    // Obter início e fim do dia atual
+    // Obter início do dia atual
     const today = new Date()
     const startOfDay = new Date(
       today.getFullYear(),
@@ -159,42 +176,32 @@ class StockMonitorService {
       0,
       0
     )
-    const endOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-      23,
-      59,
-      59
-    )
 
-    // Buscar produto
-    const product = await connection('product').where('id', productId).first()
+    // Contar notificações enviadas hoje para este produto
+    const result = await connection('notification_history')
+      .where('product_id', productId)
+      .where('sent_at', '>=', startOfDay)
+      .count('* as count')
 
-    if (!product || !product.last_notification_at) {
-      return 0
+    return parseInt(result[0].count, 10) || 0
+  }
+
+  isBusinessHours() {
+    const now = new Date()
+    const day = now.getDay() // 0 = Domingo, 6 = Sábado
+    const hour = now.getHours()
+
+    // Verificar se é dia útil (segunda a sexta)
+    if (day === 0 || day === 6) {
+      return false
     }
 
-    const lastNotification = new Date(product.last_notification_at)
-
-    // Se a última notificação foi hoje, contar quantas vezes foi notificado
-    // Simplificação: assumir 1 notificação se foi hoje, 0 se não foi
-    // Para rastreamento preciso, seria necessário uma tabela de histórico
-    if (lastNotification >= startOfDay && lastNotification <= endOfDay) {
-      // Por enquanto, vamos usar uma lógica simples:
-      // Se notificou há menos de 12 horas, consideramos que já notificou 1x
-      // Se notificou há menos de 1 hora, consideramos que já notificou 2x (limite máximo)
-      const hoursSinceLastNotification =
-        (Date.now() - lastNotification.getTime()) / (1000 * 60 * 60)
-
-      if (hoursSinceLastNotification < 1) {
-        return 2 // Evitar spam se notificou recentemente
-      } else if (hoursSinceLastNotification < 12) {
-        return 1 // Primeira notificação do dia
-      }
+    // Verificar se está no horário comercial (8h às 18h)
+    if (hour < 8 || hour >= 18) {
+      return false
     }
 
-    return 0
+    return true
   }
 
   async sendNotification(product, currentStock, minStock, level) {
@@ -205,12 +212,23 @@ class StockMonitorService {
     }\nEstoque: ${currentStock} unidades (mínimo: ${minStock})`
 
     const topic = `product_${product.id}`
+    const connection = this.productModel.connection
 
     try {
       // Usando o método correto da classe FirebaseMessaging
       await this.firebaseMessaging.sendNotification(title, body, topic)
 
-      console.log(`✅ Notificação enviada para tópico: ${topic}`)
+      // Registrar no histórico
+      await connection('notification_history').insert({
+        product_id: product.id,
+        level: level,
+        stock_at_notification: currentStock,
+        min_stock: minStock,
+      })
+
+      console.log(
+        `✅ Notificação enviada para tópico: ${topic} e registrada no histórico`
+      )
     } catch (error) {
       console.error('❌ Erro ao enviar notificação:', error.message)
       throw error
