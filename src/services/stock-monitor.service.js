@@ -9,23 +9,6 @@ class StockMonitorService {
   async checkAllProducts() {
     console.log('🔍 Iniciando verificação de estoque...')
 
-    // Verificar se está em horário comercial
-    if (!this.isBusinessHours()) {
-      console.log(
-        '⏰ Fora do horário comercial (Segunda-Sexta, 8h-18h). Verificação ignorada.'
-      )
-      return {
-        success: true,
-        results: {
-          checked: 0,
-          notifications_sent: 0,
-          errors: 0,
-          skipped: 0,
-        },
-        message: 'Fora do horário comercial',
-      }
-    }
-
     const CLICK_API_URL = process.env.CLICK_API_URL
     const CLICK_API_ACCESS_TOKEN = process.env.CLICK_API_ACCESS_TOKEN
     const CLICK_API_SECRET_TOKEN = process.env.CLICK_API_PRIVATE_TOKEN
@@ -111,16 +94,34 @@ class StockMonitorService {
           const needsNotification = this.shouldNotify(currentStock, minStock)
 
           if (needsNotification) {
-            const level = this.getStockLevel(currentStock, minStock)
-            await this.sendNotification(product, currentStock, minStock, level)
-
-            // Atualizar timestamp da última notificação
-            await this.productModel.updateLastNotification(product.id)
-
-            results.notifications_sent++
-            console.log(
-              `🔔 Notificação enviada para produto ${product.barcode} (${level})`
+            // Verificar se o estoque mudou desde a última notificação
+            const stockChanged = await this.shouldNotifyBasedOnStockChange(
+              product.id,
+              currentStock
             )
+
+            if (stockChanged) {
+              const level = this.getStockLevel(currentStock, minStock)
+              await this.sendNotification(
+                product,
+                currentStock,
+                minStock,
+                level
+              )
+
+              // Atualizar timestamp da última notificação
+              await this.productModel.updateLastNotification(product.id)
+
+              results.notifications_sent++
+              console.log(
+                `🔔 Notificação enviada para produto ${product.barcode} (${level})`
+              )
+            } else {
+              console.log(
+                `⏭️ Produto ${product.barcode}: Estoque não mudou, pulando notificação`
+              )
+              results.skipped++
+            }
           } else {
             console.log(
               `✅ Produto ${product.barcode}: Estoque OK (${currentStock}/${minStock})`
@@ -186,22 +187,37 @@ class StockMonitorService {
     return parseInt(result[0].count, 10) || 0
   }
 
-  isBusinessHours() {
-    const now = new Date()
-    const day = now.getDay() // 0 = Domingo, 6 = Sábado
-    const hour = now.getHours()
+  async getLastNotificationStock(productId) {
+    const connection = this.productModel.connection
 
-    // Verificar se é dia útil (segunda a sexta)
-    if (day === 0 || day === 6) {
-      return false
+    // Buscar a última notificação enviada para este produto
+    const lastNotification = await connection('notification_history')
+      .where('product_id', productId)
+      .orderBy('sent_at', 'desc')
+      .first()
+
+    return lastNotification ? lastNotification.stock_at_notification : null
+  }
+
+  async shouldNotifyBasedOnStockChange(productId, currentStock) {
+    const lastStock = await this.getLastNotificationStock(productId)
+
+    // Se nunca notificou, deve notificar
+    if (lastStock === null) {
+      return true
     }
 
-    // Verificar se está no horário comercial (8h às 18h)
-    if (hour < 8 || hour >= 18) {
-      return false
+    // Se o estoque mudou desde a última notificação, deve notificar
+    // Isso evita notificações duplicadas quando o estoque não mudou
+    if (currentStock !== lastStock) {
+      console.log(`📊 Estoque mudou: ${lastStock} → ${currentStock}`)
+      return true
     }
 
-    return true
+    console.log(
+      `⏭️ Estoque não mudou (${currentStock}), não notificar novamente`
+    )
+    return false
   }
 
   async sendNotification(product, currentStock, minStock, level) {
