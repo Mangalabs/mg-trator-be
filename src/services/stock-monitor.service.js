@@ -6,8 +6,9 @@ class StockMonitorService {
     this.firebaseMessaging = firebaseMessaging
   }
 
-  async checkAllProducts() {
-    console.log('🔍 Iniciando verificação de estoque...')
+  async checkAllProducts(isScheduledNotification = false) {
+    const mode = isScheduledNotification ? '[PROGRAMADA]' : '[CONTÍNUA]'
+    console.log(`🔍 ${mode} Iniciando verificação de estoque...`)
 
     const CLICK_API_URL = process.env.CLICK_API_URL
     const CLICK_API_ACCESS_TOKEN = process.env.CLICK_API_ACCESS_TOKEN
@@ -36,19 +37,6 @@ class StockMonitorService {
 
       for (const product of products) {
         try {
-          // Verificar se já notificou 2 vezes hoje
-          const notificationsToday = await this.getNotificationsCountToday(
-            product.id
-          )
-
-          if (notificationsToday >= 2) {
-            console.log(
-              `⏭️  Produto ${product.barcode} já foi notificado ${notificationsToday}x hoje, pulando...`
-            )
-            results.skipped++
-            continue
-          }
-
           // Buscar dados atualizados da API Click
           const clickResponse = await axios.get(`${CLICK_API_URL}/produtos`, {
             params: {
@@ -94,13 +82,51 @@ class StockMonitorService {
           const needsNotification = this.shouldNotify(currentStock, minStock)
 
           if (needsNotification) {
-            // Verificar se o estoque mudou desde a última notificação
-            const stockChanged = await this.shouldNotifyBasedOnStockChange(
-              product.id,
-              currentStock
-            )
+            let shouldSendNotification = false
 
-            if (stockChanged) {
+            if (isScheduledNotification) {
+              // NOTIFICAÇÃO PROGRAMADA (8h ou 16h)
+              // Verifica se já notificou 2 vezes hoje
+              const notificationsToday = await this.getNotificationsCountToday(
+                product.id
+              )
+
+              if (notificationsToday < 2) {
+                shouldSendNotification = true
+                console.log(
+                  `📅 [PROGRAMADA] Notificando produto ${product.barcode} (${
+                    notificationsToday + 1
+                  }/2 hoje)`
+                )
+              } else {
+                console.log(
+                  `⏭️ [PROGRAMADA] Produto ${product.barcode} já notificado 2x hoje`
+                )
+                results.skipped++
+              }
+            } else {
+              // VERIFICAÇÃO CONTÍNUA (a cada 30 min)
+              // Só notifica se o estoque MUDOU desde a última notificação
+              const stockChanged = await this.shouldNotifyBasedOnStockChange(
+                product.id,
+                currentStock
+              )
+
+              if (stockChanged) {
+                shouldSendNotification = true
+                console.log(
+                  `🚨 [TEMPO REAL] Estoque mudou para ${product.barcode}! Notificando...`
+                )
+              } else {
+                console.log(
+                  `⏭️ [CONTÍNUA] Produto ${product.barcode}: Estoque não mudou (${currentStock})`
+                )
+                results.skipped++
+              }
+            }
+
+            // Enviar notificação se necessário
+            if (shouldSendNotification) {
               const level = this.getStockLevel(currentStock, minStock)
               await this.sendNotification(
                 product,
@@ -116,11 +142,6 @@ class StockMonitorService {
               console.log(
                 `🔔 Notificação enviada para produto ${product.barcode} (${level})`
               )
-            } else {
-              console.log(
-                `⏭️ Produto ${product.barcode}: Estoque não mudou, pulando notificação`
-              )
-              results.skipped++
             }
           } else {
             console.log(
